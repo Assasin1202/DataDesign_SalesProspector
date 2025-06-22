@@ -28,17 +28,19 @@ COPY . .
 
 # Create .streamlit directory and config
 RUN mkdir -p /app/.streamlit
-COPY <<EOF /app/.streamlit/config.toml
-[server]
-port = 8501
-address = "0.0.0.0"
-headless = true
-enableCORS = false
-enableXsrfProtection = false
-
-[theme]
-base = "light"
-EOF
+RUN echo '[server]\n\
+port = 8501\n\
+address = "0.0.0.0"\n\
+headless = true\n\
+enableCORS = false\n\
+enableXsrfProtection = false\n\
+runOnSave = false\n\
+\n\
+[browser]\n\
+gatherUsageStats = false\n\
+\n\
+[theme]\n\
+base = "light"' > /app/.streamlit/config.toml
 
 # Expose the port that Streamlit runs on
 EXPOSE 8501
@@ -47,4 +49,4 @@ EXPOSE 8501
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
 # Run the Streamlit app
-CMD ["streamlit", "run", "newapp.py", "--server.port=8501", "--server.address=0.0.0.0"] 
+CMD ["streamlit", "run", "newapp.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--browser.gatherUsageStats=false"] 
