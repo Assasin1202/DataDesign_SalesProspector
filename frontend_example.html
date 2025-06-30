@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Processing API - Frontend Example</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 10px 0; }
+        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        .button:hover { background: #0056b3; }
+        .result { background: #fff; padding: 15px; border-radius: 4px; margin: 10px 0; border-left: 4px solid #007bff; }
+        .error { border-left-color: #dc3545; }
+        .success { border-left-color: #28a745; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .quota-info { background: #e9ecef; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Lead Processing API - Frontend Example</h1>
+    
+    <!-- API Status Section -->
+    <div class="container">
+        <h2>API Status</h2>
+        <button class="button" onclick="checkHealth()">Check API Health</button>
+        <button class="button" onclick="getQuotaStatus()">Get Quota Status</button>
+        <button class="button" onclick="resetQuota()">Reset Quota</button>
+        <button class="button" onclick="clearCache()">Clear Cache</button>
+        <div id="status-result" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- Lead Processing Section -->
+    <div class="container">
+        <h2>Process Lead</h2>
+        <form id="lead-form" onsubmit="processLead(event)">
+            <div class="form-group">
+                <label for="file">Excel File (.xlsx):</label>
+                <input type="file" id="file" name="file" accept=".xlsx,.xls" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="model_type">Model Type:</label>
+                <select id="model_type" name="model_type">
+                    <option value="azure">Azure OpenAI</option>
+                    <option value="mistral">Mistral</option>
+                    <option value="claude">Claude</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="azure_model">Azure Model (if Azure selected):</label>
+                <select id="azure_model" name="azure_model">
+                    <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                    <option value="gpt-4.1">GPT-4.1</option>
+                    <option value="o3-mini">O3 Mini</option>
+                    <option value="o4-mini">O4 Mini</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="preferred_channel">Preferred Channel (optional):</label>
+                <select id="preferred_channel" name="preferred_channel">
+                    <option value="">Let AI decide</option>
+                    <option value="Email">Email</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="Phone">Phone</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="messaging_preferences">Messaging Preferences (optional):</label>
+                <textarea id="messaging_preferences" name="messaging_preferences" rows="3" 
+                          placeholder="e.g., Company: TechSolutions Inc - delivers software development services&#10;Website: techsolutions.com&#10;Keep tone formal, mention 24/7 support"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="grading_prompt">Custom Grading Prompt (optional):</label>
+                <textarea id="grading_prompt" name="grading_prompt" rows="3" 
+                          placeholder="Custom criteria for grading prospects..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="minimal_evaluation" name="minimal_evaluation">
+                    Use Minimal Evaluation (saves quota)
+                </label>
+            </div>
+            
+            <button type="submit" class="button">Process Lead</button>
+        </form>
+        
+        <div id="processing-result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        // Utility function to display results
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        // Check API health
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                showResult('status-result', data);
+            } catch (error) {
+                showResult('status-result', { error: error.message }, true);
+            }
+        }
+
+        // Get quota status
+        async function getQuotaStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/quota-status`);
+                const data = await response.json();
+                showResult('status-result', data);
+            } catch (error) {
+                showResult('status-result', { error: error.message }, true);
+            }
+        }
+
+        // Reset quota
+        async function resetQuota() {
+            try {
+                const response = await fetch(`${API_BASE}/reset-quota`, { method: 'POST' });
+                const data = await response.json();
+                showResult('status-result', data);
+            } catch (error) {
+                showResult('status-result', { error: error.message }, true);
+            }
+        }
+
+        // Clear cache
+        async function clearCache() {
+            try {
+                const response = await fetch(`${API_BASE}/clear-cache`, { method: 'POST' });
+                const data = await response.json();
+                showResult('status-result', data);
+            } catch (error) {
+                showResult('status-result', { error: error.message }, true);
+            }
+        }
+
+        // Process lead
+        async function processLead(event) {
+            event.preventDefault();
+            
+            const form = document.getElementById('lead-form');
+            const formData = new FormData(form);
+            
+            // Show loading state
+            const resultDiv = document.getElementById('processing-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<p>🔄 Processing lead... This may take a few minutes.</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/process-lead`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                showResult('processing-result', data);
+                
+                // Also update quota status if available
+                if (data.search_quota_status) {
+                    const quotaDiv = document.createElement('div');
+                    quotaDiv.className = 'quota-info';
+                    quotaDiv.innerHTML = `
+                        <strong>Search Quota Status:</strong><br>
+                        Calls made: ${data.search_quota_status.calls_made}/${data.search_quota_status.total_limit}<br>
+                        Remaining: ${data.search_quota_status.calls_remaining}<br>
+                        Cache entries: ${data.search_quota_status.cache_entries}
+                    `;
+                    resultDiv.appendChild(quotaDiv);
+                }
+                
+            } catch (error) {
+                showResult('processing-result', { error: error.message }, true);
+            }
+        }
+
+        // Load model options on page load
+        window.onload = async function() {
+            try {
+                const response = await fetch(`${API_BASE}/model-options`);
+                const data = await response.json();
+                console.log('Available options:', data);
+            } catch (error) {
+                console.error('Failed to load model options:', error);
+            }
+        };
+    </script>
+</body>
+</html> 
